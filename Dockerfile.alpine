@@ -1,0 +1,54 @@
+FROM alpine:3.12
+
+LABEL maintainer="Yves Blusseau <90z7oey02@sneakemail.com> (@blusseau)"
+
+ENV DOCKER_HOST=unix:///var/run/docker.sock \
+    PATH=$PATH:/app
+
+# Install packages required by the image
+RUN apk add --update \
+        bash \
+        coreutils \
+        curl \
+        jq \
+        netcat-openbsd \
+        openssl \
+        socat \
+    && rm /var/cache/apk/*
+
+# Install docker-gen
+ENV DOCKER_GEN_VERSION 0.7.4
+
+RUN wget --quiet https://github.com/jwilder/docker-gen/releases/download/$DOCKER_GEN_VERSION/docker-gen-alpine-linux-amd64-$DOCKER_GEN_VERSION.tar.gz \
+    && tar -C /usr/local/bin -xvzf docker-gen-alpine-linux-amd64-$DOCKER_GEN_VERSION.tar.gz \
+    && rm /docker-gen-alpine-linux-amd64-$DOCKER_GEN_VERSION.tar.gz
+
+# Install packages required by the image
+RUN apk add --update \
+        openssl \
+        openssh-client \
+        coreutils \
+        bind-tools \
+        curl \
+        socat \
+        tzdata \
+        oath-toolkit-oathtool \
+        tar \
+    && rm -rf /var/cache/apk/*
+
+# Install acme.sh
+
+COPY /install_acme_master.sh /app/install_acme_master.sh
+RUN chmod +rx /app/install_acme_master.sh \
+    && sync \
+    && /app/install_acme_master.sh \
+    && rm -f /app/install_acme_master.sh
+
+COPY /app/ /app/
+
+WORKDIR /app
+
+VOLUME ["/etc/acme.sh", "/etc/nginx/certs", "/usr/share/nginx/html"]
+
+ENTRYPOINT [ "/bin/bash", "/app/entrypoint.sh" ]
+CMD [ "/bin/bash", "/app/start.sh" ]
